@@ -7,6 +7,7 @@ import {
   Download,
   Calendar,
   Mail,
+  Phone,
   Loader2,
   Search,
   Filter
@@ -270,6 +271,11 @@ export default function BookingsManagementPage() {
                         <span className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
                           <Mail className="w-3.5 h-3.5" /> {booking.guest_email}
                         </span>
+                        {booking.guest_phone && (
+                          <span className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
+                            <Phone className="w-3.5 h-3.5" /> {booking.guest_phone}
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">

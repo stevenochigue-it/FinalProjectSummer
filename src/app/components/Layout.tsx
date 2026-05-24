@@ -114,7 +114,7 @@ export default function Layout() {
               <ul className="space-y-2 text-gray-400">
                 <li>Phone: +1 (555) 123-4567</li>
                 <li>Email: info@marianhotel.com</li>
-                <li>Address: 123 Hotel Street, City</li>
+                <li>Address: St. Rita's College of Balingasag Balingasag, Misamis Oriental 9005 Philippines</li>
               </ul>
             </div>
           </div>

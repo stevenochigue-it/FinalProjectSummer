@@ -11,6 +11,7 @@ if (
     !empty($data->room_id) &&
     !empty($data->guest_name) &&
     !empty($data->guest_email) &&
+    !empty($data->guest_phone) &&
     !empty($data->check_in) &&
     !empty($data->check_out) &&
     !empty($data->total_price)
@@ -58,11 +59,18 @@ if (
 
         if ($existingGuest) {
             $guest_id = $existingGuest['id'];
+            // Update phone number if it changed
+            $updatePhoneQuery = "UPDATE guests SET phone = :phone WHERE id = :id";
+            $updatePhoneStmt = $db->prepare($updatePhoneQuery);
+            $updatePhoneStmt->bindParam(':phone', $data->guest_phone);
+            $updatePhoneStmt->bindParam(':id', $guest_id);
+            $updatePhoneStmt->execute();
         } else {
-            $createGuestQuery = "INSERT INTO guests (name, email) VALUES (:name, :email)";
+            $createGuestQuery = "INSERT INTO guests (name, email, phone) VALUES (:name, :email, :phone)";
             $createGuestStmt = $db->prepare($createGuestQuery);
             $createGuestStmt->bindParam(':name', $data->guest_name);
             $createGuestStmt->bindParam(':email', $data->guest_email);
+            $createGuestStmt->bindParam(':phone', $data->guest_phone);
             $createGuestStmt->execute();
             $guest_id = $db->lastInsertId();
         }

@@ -20,7 +20,7 @@ try {
     $pdo->exec("USE `$db_name` ");
 
     // Get schema file
-    $sql = file_get_contents('../database/schema.sql');
+    $sql = file_get_contents('../database/schema_final.sql');
     
     // Execute schema
     $pdo->exec($sql);

@@ -48,9 +48,9 @@ export default function Contact() {
               </div>
               <div>
                 <h3 className="text-xl font-semibold mb-2">Address</h3>
-                <p className="text-gray-600">123 Hotel Street</p>
-                <p className="text-gray-600">City, State 12345</p>
-                <p className="text-gray-600">United States</p>
+                <p className="text-gray-600">St. Rita's College of Balingasag</p>
+                <p className="text-gray-600">Balingasag, Misamis Oriental 9005</p>
+                <p className="text-gray-600">Philippines</p>
               </div>
             </div>
 

@@ -14,7 +14,8 @@ import {
   Info,
   ChevronRight,
   Mail,
-  User
+  User,
+  Phone
 } from 'lucide-react';
 import { roomTypes, getLocalRooms, getLocalBookings, saveLocalBookings } from '../data/rooms';
 import { toast } from "sonner";
@@ -44,7 +45,8 @@ export default function Reservation() {
     guests: 1,
     roomId: '',
     guestName: '',
-    guestEmail: ''
+    guestEmail: '',
+    guestPhone: ''
   });
 
   // Validation States for custom recovery messages (Heuristic #9)
@@ -208,6 +210,7 @@ export default function Reservation() {
           room_id: formData.roomId,
           guest_name: formData.guestName,
           guest_email: formData.guestEmail,
+          guest_phone: formData.guestPhone,
           check_in: formData.checkIn,
           check_out: formData.checkOut,
           total_price: estimatedCost
@@ -222,7 +225,8 @@ export default function Reservation() {
           guests: 1,
           roomId: '',
           guestName: '',
-          guestEmail: ''
+          guestEmail: '',
+          guestPhone: ''
         });
         setStep(1);
       } else {
@@ -241,6 +245,7 @@ export default function Reservation() {
           room_type: selectedRoom.room_type,
           guest_name: formData.guestName,
           guest_email: formData.guestEmail,
+          guest_phone: formData.guestPhone,
           check_in: formData.checkIn,
           check_out: formData.checkOut,
           status: 'confirmed' as const,
@@ -256,7 +261,8 @@ export default function Reservation() {
           guests: 1,
           roomId: '',
           guestName: '',
-          guestEmail: ''
+          guestEmail: '',
+          guestPhone: ''
         });
         setStep(1);
       } else {
@@ -316,6 +322,9 @@ export default function Reservation() {
     } else if (!emailRegex.test(formData.guestEmail)) {
       newErrors.guestEmail = "Please enter a valid email format (e.g. name@domain.com).";
     }
+    if (!formData.guestPhone.trim()) {
+      newErrors.guestPhone = "Phone number is required for booking updates.";
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -344,7 +353,8 @@ export default function Reservation() {
       guests: 1,
       roomId: '',
       guestName: '',
-      guestEmail: ''
+      guestEmail: '',
+      guestPhone: ''
     });
     setStep(1);
     setErrors({});
@@ -699,6 +709,37 @@ export default function Reservation() {
                       Your booking voucher, check-in instructions, and billing invoices will be dispatched to this email.
                     </p>
                   </div>
+
+                  {/* Phone */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-bold text-slate-700">Phone Number</label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="tel"
+                        placeholder="+63 912 345 6789"
+                        value={formData.guestPhone}
+                        onChange={(e) => {
+                          setFormData({ ...formData, guestPhone: e.target.value });
+                          setErrors(prev => ({ ...prev, guestPhone: '' }));
+                        }}
+                        className={`w-full pl-10 pr-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all ${
+                          errors.guestPhone 
+                            ? 'border-red-400 focus:ring-red-100' 
+                            : 'border-slate-200 focus:ring-blue-100 focus:border-[#1E73BE]'
+                        }`}
+                      />
+                    </div>
+                    {errors.guestPhone && (
+                      <p className="text-xs font-bold text-red-500 flex items-center gap-1 mt-1">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        <span>{errors.guestPhone}</span>
+                      </p>
+                    )}
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Provide a valid mobile number for check-in confirmation and quick SMS alerts.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
@@ -722,7 +763,12 @@ export default function Reservation() {
 
                   <div className="flex justify-between py-2 border-b border-slate-200">
                     <span className="font-semibold text-slate-500">Contact Email:</span>
-                    <span className="font-bold text-slate-955">{formData.guestEmail}</span>
+                    <span className="font-bold text-slate-900">{formData.guestEmail}</span>
+                  </div>
+
+                  <div className="flex justify-between py-2 border-b border-slate-200">
+                    <span className="font-semibold text-slate-500">Phone Number:</span>
+                    <span className="font-bold text-slate-900">{formData.guestPhone}</span>
                   </div>
 
                   <div className="flex justify-between py-2 border-b border-slate-200">

@@ -12,7 +12,7 @@ $db = $database->getConnection();
 try {
     // 3NF Update: Join with guests and room_categories to get all details
     $query = "SELECT b.id, b.check_in, b.check_out, b.total_price, b.status, b.created_at,
-                     g.name as guest_name, g.email as guest_email,
+                     g.name as guest_name, g.email as guest_email, g.phone as guest_phone,
                      r.room_number, c.category_name as room_type
               FROM bookings b 
               JOIN guests g ON b.guest_id = g.id

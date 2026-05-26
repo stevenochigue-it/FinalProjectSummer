@@ -80,6 +80,17 @@ export default function RoomsManagementPage() {
   });
   const [amenityInput, setAmenityInput] = useState('');
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewRoom(prev => ({ ...prev, image_url: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const fetchRooms = async () => {
     try {
       setLoading(true);
@@ -351,32 +362,27 @@ export default function RoomsManagementPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="image_url">Image URL</Label>
-                  <Input 
-                    id="image_url" 
-                    placeholder="https://..." 
-                    value={newRoom.image_url}
-                    onChange={e => setNewRoom({...newRoom, image_url: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="status">Room Status</Label>
-                  <Select 
-                    value={newRoom.status} 
-                    onValueChange={v => setNewRoom({...newRoom, status: v})}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="available">Available</SelectItem>
-                      <SelectItem value="occupied">Occupied/Reserved</SelectItem>
-                      <SelectItem value="maintenance">Maintenance</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="image_file">Upload Room Image (from device)</Label>
+                <Input 
+                  id="image_file" 
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="cursor-pointer"
+                />
+                {newRoom.image_url && (
+                  <div className="mt-2 relative w-32 h-20 rounded-lg overflow-hidden border border-slate-200 shadow-sm bg-slate-50">
+                    <img src={newRoom.image_url} alt="Room preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setNewRoom({...newRoom, image_url: ''})}
+                      className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">

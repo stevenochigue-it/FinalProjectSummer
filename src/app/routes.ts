@@ -5,6 +5,7 @@ import RoomDetails from "./pages/RoomDetails";
 import Reservation from "./pages/Reservation";
 import Contact from "./pages/Contact";
 import HelpCenter from "./pages/HelpCenter";
+import TermsAndPrivacy from "./pages/TermsAndPrivacy";
 import Layout from "./components/Layout";
 import AdminLayout from "./components/AdminLayout";
 import DashboardPage from "./pages/admin/DashboardPage";
@@ -23,6 +24,8 @@ export const router = createBrowserRouter([
       { path: "reservation", Component: Reservation },
       { path: "contact", Component: Contact },
       { path: "help", Component: HelpCenter },
+      { path: "terms", Component: TermsAndPrivacy },
+      { path: "privacy", Component: TermsAndPrivacy },
     ],
   },
   {

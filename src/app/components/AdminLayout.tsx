@@ -8,7 +8,6 @@ import {
   User, 
   Bell, 
   Search,
-  Hotel,
   ChevronRight
 } from 'lucide-react';
 
@@ -46,11 +45,14 @@ export default function AdminLayout() {
     <div className="flex h-screen bg-[#F8FAFC] font-sans">
       {/* Sidebar */}
       <aside className="w-64 bg-[#0F172A] text-slate-300 flex flex-col border-r border-slate-800">
-        <div className="p-6 flex items-center gap-3">
-          <div className="bg-[#1E73BE] p-2 rounded-lg">
-            <Hotel className="w-6 h-6 text-white" />
+        <div className="p-6 flex items-center gap-3 border-b border-slate-800/80 mb-4">
+          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#1E73BE]/20 shadow-md bg-white flex items-center justify-center flex-shrink-0">
+            <img src="/logo.jpg" alt="Marian Hotel Logo" className="w-full h-full object-cover scale-[1.05]" />
           </div>
-          <span className="text-xl font-bold text-white tracking-tight">Marian Admin</span>
+          <div className="flex flex-col">
+            <span className="text-lg font-bold tracking-tight text-white leading-none mb-0.5">Marian Hotel</span>
+            <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">HMP SRCB - Admin</span>
+          </div>
         </div>
 
         <nav className="flex-1 px-4 py-6 space-y-2">

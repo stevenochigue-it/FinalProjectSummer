@@ -49,7 +49,7 @@ export default function BookingsManagementPage() {
   // Confirmation Alert Dialog state (Heuristic #5: Error Prevention)
   const [pendingAction, setPendingAction] = useState<{
     id: number;
-    status: 'confirmed' | 'cancelled';
+    status: 'approved' | 'confirmed' | 'cancelled';
     guestName: string;
   } | null>(null);
 
@@ -108,7 +108,7 @@ export default function BookingsManagementPage() {
     }
   };
 
-  const triggerStatusUpdate = (id: number, status: 'confirmed' | 'cancelled', guestName: string) => {
+  const triggerStatusUpdate = (id: number, status: 'approved' | 'confirmed' | 'cancelled', guestName: string) => {
     setPendingAction({ id, status, guestName });
   };
 
@@ -135,6 +135,7 @@ export default function BookingsManagementPage() {
   const stats = {
     total: bookings.length,
     pending: bookings.filter(b => b.status === 'pending').length,
+    approved: bookings.filter(b => b.status === 'approved').length,
     confirmed: bookings.filter(b => b.status === 'confirmed').length,
     cancelled: bookings.filter(b => b.status === 'cancelled').length
   };
@@ -158,8 +159,8 @@ export default function BookingsManagementPage() {
       {/* Stats Cards Dashboard */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="bg-blue-50 p-3 rounded-xl">
-            <Calendar className="w-6 h-6 text-blue-600" />
+          <div className="bg-[#1E73BE]/10 p-3 rounded-xl">
+            <Calendar className="w-6 h-6 text-[#1E73BE]" />
           </div>
           <div>
             <p className="text-slate-500 text-sm font-medium">Total Bookings</p>
@@ -176,21 +177,21 @@ export default function BookingsManagementPage() {
           </div>
         </div>
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+          <div className="bg-blue-50 p-3 rounded-xl">
+            <Calendar className="w-6 h-6 text-blue-600" />
+          </div>
+          <div>
+            <p className="text-slate-500 text-sm font-medium">Approved (Wait Payment)</p>
+            <p className="text-2xl font-bold text-slate-900">{stats.approved}</p>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
           <div className="bg-emerald-50 p-3 rounded-xl">
             <CheckCircle2 className="w-6 h-6 text-emerald-600" />
           </div>
           <div>
-            <p className="text-slate-500 text-sm font-medium">Confirmed Stay</p>
+            <p className="text-slate-500 text-sm font-medium">Paid & Confirmed</p>
             <p className="text-2xl font-bold text-slate-900">{stats.confirmed}</p>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="bg-rose-50 p-3 rounded-xl">
-            <XCircle className="w-6 h-6 text-rose-600" />
-          </div>
-          <div>
-            <p className="text-slate-500 text-sm font-medium">Cancelled</p>
-            <p className="text-2xl font-bold text-slate-900">{stats.cancelled}</p>
           </div>
         </div>
       </div>
@@ -219,7 +220,8 @@ export default function BookingsManagementPage() {
           {[
             { id: 'all', label: `All (${bookings.length})` },
             { id: 'pending', label: `Pending (${stats.pending})` },
-            { id: 'confirmed', label: `Confirmed (${stats.confirmed})` },
+            { id: 'approved', label: `Approved (${stats.approved})` },
+            { id: 'confirmed', label: `Confirmed/Paid (${stats.confirmed})` },
             { id: 'cancelled', label: `Cancelled (${stats.cancelled})` },
           ].map((tab) => (
             <button
@@ -295,13 +297,15 @@ export default function BookingsManagementPage() {
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold capitalize ${
                         booking.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
+                        booking.status === 'approved' ? 'bg-blue-100 text-blue-700' :
                         booking.status === 'pending' ? 'bg-amber-100 text-amber-700' :
                         'bg-rose-100 text-rose-700'
                       }`}>
                         {booking.status === 'confirmed' && <CheckCircle2 className="w-3 h-3" />}
+                        {booking.status === 'approved' && <Clock className="w-3 h-3" />}
                         {booking.status === 'pending' && <Clock className="w-3 h-3" />}
                         {booking.status === 'cancelled' && <XCircle className="w-3 h-3" />}
-                        {booking.status}
+                        {booking.status === 'approved' ? 'Approved (Unpaid)' : booking.status === 'confirmed' ? 'Paid & Confirmed' : booking.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -309,7 +313,7 @@ export default function BookingsManagementPage() {
                         {booking.status === 'pending' && (
                           <>
                             <button 
-                              onClick={() => triggerStatusUpdate(booking.id, 'confirmed', booking.guest_name)}
+                              onClick={() => triggerStatusUpdate(booking.id, 'approved', booking.guest_name)}
                               className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
                               title="Approve Reservation"
                             >
@@ -345,10 +349,10 @@ export default function BookingsManagementPage() {
               Confirm Reservation Status Update?
             </AlertDialogTitle>
             <AlertDialogDescription className="pt-2">
-              You are about to mark the reservation for <span className="font-bold text-slate-900">"{pendingAction?.guestName}"</span> as <span className="font-bold capitalize" style={{ color: pendingAction?.status === 'confirmed' ? '#10B981' : '#F43F5E' }}>{pendingAction?.status}</span>. 
-              {pendingAction?.status === 'confirmed' 
-                ? " This will confirm the room hold and prepare check-in guidelines."
-                : " This will immediately release the room inventory, making it bookable by other guests."}
+              You are about to mark the reservation for <span className="font-bold text-slate-900">"{pendingAction?.guestName}"</span> as <span className="font-bold capitalize" style={{ color: pendingAction?.status === 'approved' ? '#3B82F6' : pendingAction?.status === 'confirmed' ? '#10B981' : '#F43F5E' }}>{pendingAction?.status === 'approved' ? 'Approved (Waiting Payment)' : pendingAction?.status}</span>. 
+              {pendingAction?.status === 'approved' && " This will approve the guest's request and allow them to make a mock payment to confirm their booking."}
+              {pendingAction?.status === 'confirmed' && " This will confirm the room hold and mark it as Paid."}
+              {pendingAction?.status === 'cancelled' && " This will reject the reservation request and release room availability."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-6">
@@ -356,9 +360,9 @@ export default function BookingsManagementPage() {
             <AlertDialogAction 
               onClick={confirmStatusUpdate}
               className={`rounded-xl text-white font-bold transition-all border-none ${
-                pendingAction?.status === 'confirmed' 
-                  ? 'bg-emerald-600 hover:bg-emerald-700' 
-                  : 'bg-rose-600 hover:bg-rose-700'
+                pendingAction?.status === 'approved' ? 'bg-blue-600 hover:bg-blue-700' :
+                pendingAction?.status === 'confirmed' ? 'bg-emerald-600 hover:bg-emerald-700' :
+                'bg-rose-600 hover:bg-rose-700'
               }`}
             >
               Confirm Status Change

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Lock, User, Eye, EyeOff, Loader2, Hotel } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export default function AdminLogin() {
   const [username, setUsername] = useState('');
@@ -62,11 +62,11 @@ export default function AdminLogin() {
       <div className="w-full max-w-md relative z-10">
         {/* Logo Section */}
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-[#1E73BE] rounded-2xl shadow-xl shadow-blue-200 mb-6 group transition-all hover:scale-105">
-            <Hotel className="w-10 h-10 text-white" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full overflow-hidden border-4 border-[#1E73BE]/20 shadow-xl bg-white mb-6 group transition-all hover:scale-105">
+            <img src="/logo.jpg" alt="Marian Hotel Logo" className="w-full h-full object-cover scale-[1.05]" />
           </div>
           <h1 className="text-3xl font-bold text-slate-900 mb-2 tracking-tight">Marian Admin</h1>
-          <p className="text-slate-500">Sign in to manage your hotel systems</p>
+          <p className="text-slate-500 font-medium">Sign in to manage your hotel systems</p>
         </div>
 
         {/* Login Card */}

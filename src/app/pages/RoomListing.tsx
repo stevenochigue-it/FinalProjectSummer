@@ -12,14 +12,14 @@ export default function RoomListing() {
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
-          setRooms(data);
+          setRooms(data.filter(r => r.status === 'available'));
         } else {
-          setRooms(getLocalRooms());
+          setRooms(getLocalRooms().filter(r => r.status === 'available'));
         }
       })
       .catch(err => {
         console.error("Error fetching rooms, using local storage:", err);
-        setRooms(getLocalRooms());
+        setRooms(getLocalRooms().filter(r => r.status === 'available'));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -81,13 +81,6 @@ export default function RoomListing() {
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute top-4 left-4 flex flex-col gap-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase shadow-sm ${
-                        room.status === 'available' ? 'bg-emerald-500 text-white' :
-                        room.status === 'occupied' ? 'bg-blue-500 text-white' :
-                        'bg-amber-500 text-white'
-                      }`}>
-                        {room.status}
-                      </span>
                       {room.is_reserved && (
                         <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase shadow-sm bg-slate-800 text-white backdrop-blur-md">
                           Reserved Today

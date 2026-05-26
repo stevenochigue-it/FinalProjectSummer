@@ -15,7 +15,11 @@ import {
   ChevronRight,
   Mail,
   User,
-  Phone
+  Phone,
+  Clock,
+  Search,
+  X,
+  ShieldCheck
 } from 'lucide-react';
 import { roomTypes, getLocalRooms, getLocalBookings, saveLocalBookings } from '../data/rooms';
 import { toast } from "sonner";
@@ -52,6 +56,119 @@ export default function Reservation() {
   // Validation States for custom recovery messages (Heuristic #9)
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const [activeTab, setActiveTab] = useState<'book' | 'track'>('book');
+  const [trackEmail, setTrackEmail] = useState('');
+  const [trackedBookings, setTrackedBookings] = useState<any[]>([]);
+  const [hasTracked, setHasTracked] = useState(false);
+  const [payingBookingId, setPayingBookingId] = useState<number | null>(null);
+
+  const handleTrackSearch = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!trackEmail.trim()) {
+      toast.error("Please enter your email to track bookings.");
+      return;
+    }
+    // Fetch live bookings or fallback
+    fetch('/api/bookings/list.php')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          const filtered = data.filter(b => b.guest_email.toLowerCase() === trackEmail.toLowerCase());
+          setTrackedBookings(filtered);
+        } else {
+          const local = getLocalBookings();
+          const filtered = local.filter(b => b.guest_email.toLowerCase() === trackEmail.toLowerCase());
+          setTrackedBookings(filtered);
+        }
+        setHasTracked(true);
+      })
+      .catch(() => {
+        const local = getLocalBookings();
+        const filtered = local.filter(b => b.guest_email.toLowerCase() === trackEmail.toLowerCase());
+        setTrackedBookings(filtered);
+        setHasTracked(true);
+      });
+  };
+
+  const handleConfirmPayment = async (bookingId: number) => {
+    // Validate card/gcash details first
+    const newErrors: Record<string, string> = {};
+    if (paymentMethod === 'card') {
+      if (!paymentDetails.cardName.trim()) newErrors.cardName = "Cardholder name is required.";
+      if (!paymentDetails.cardNumber.trim()) newErrors.cardNumber = "Card number is required.";
+      else if (paymentDetails.cardNumber.replace(/\s/g, '').length < 16) newErrors.cardNumber = "Card number must be 16 digits.";
+      if (!paymentDetails.cardExpiry.trim()) newErrors.cardExpiry = "Expiry MM/YY is required.";
+      else if (!/^\d{2}\/\d{2}$/.test(paymentDetails.cardExpiry)) newErrors.cardExpiry = "Expiry date must be in MM/YY format.";
+      if (!paymentDetails.cardCvv.trim()) newErrors.cardCvv = "CVV is required.";
+      else if (paymentDetails.cardCvv.length < 3) newErrors.cardCvv = "CVV must be 3 digits.";
+    } else {
+      if (!paymentDetails.gcashNumber.trim()) newErrors.gcashNumber = "GCash mobile number is required.";
+      else if (paymentDetails.gcashNumber.length < 10) newErrors.gcashNumber = "Enter a valid 10-digit GCash mobile number.";
+    }
+
+    if (!acceptTerms) {
+      newErrors.acceptTerms = "You must agree to the Terms of Service & Privacy Policy.";
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast.error("Please fill in payment details and accept terms.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Simulate API call to update status to confirmed
+      const response = await fetch('/api/bookings/update.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: bookingId, status: 'confirmed' })
+      });
+      if (response.ok) {
+        toast.success("Payment successful! Reservation is paid and fully confirmed.");
+      } else {
+        throw new Error("API update failed");
+      }
+    } catch (e) {
+      // Local storage fallback
+      const local = getLocalBookings();
+      const updated = local.map(b => {
+        if (b.id === bookingId) {
+          return { ...b, status: 'confirmed' as const };
+        }
+        return b;
+      });
+      saveLocalBookings(updated);
+      toast.success("Payment successful! Reservation is fully confirmed (Local Storage).");
+    } finally {
+      setIsSubmitting(false);
+      setPayingBookingId(null);
+      setPaymentDetails({
+        cardName: '',
+        cardNumber: '',
+        cardExpiry: '',
+        cardCvv: '',
+        gcashNumber: ''
+      });
+      setAcceptTerms(false);
+      setTimeout(() => {
+        const local = getLocalBookings();
+        const filtered = local.filter(b => b.guest_email.toLowerCase() === trackEmail.toLowerCase());
+        setTrackedBookings(filtered);
+      }, 100);
+    }
+  };
+
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'gcash'>('card');
+  const [paymentDetails, setPaymentDetails] = useState({
+    cardName: '',
+    cardNumber: '',
+    cardExpiry: '',
+    cardCvv: '',
+    gcashNumber: ''
+  });
+  const [acceptTerms, setAcceptTerms] = useState(false);
+
   const [estimatedCost, setEstimatedCost] = useState(0);
   const [nights, setNights] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -75,20 +192,20 @@ export default function Reservation() {
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
-          setRooms(data);
-          setAvailableRooms(data);
+          const availableOnly = data.filter(r => r.status === 'available');
+          setRooms(availableOnly);
+          setAvailableRooms(availableOnly);
           
           if (preselectedRoom) {
             const [type, num] = preselectedRoom.split('-');
-            const found = data.find(r => r.room_type === type && r.room_number.toString() === num);
+            const found = availableOnly.find(r => r.room_type === type && r.room_number.toString() === num);
             if (found) {
               setFormData(prev => ({ ...prev, roomId: found.id.toString() }));
-              // If a room is pre-selected, fast-track the user to check dates
               setStep(1);
             }
           }
         } else {
-          const localRooms = getLocalRooms();
+          const localRooms = getLocalRooms().filter(r => r.status === 'available');
           setRooms(localRooms);
           setAvailableRooms(localRooms);
           if (preselectedRoom) {
@@ -103,7 +220,7 @@ export default function Reservation() {
       })
       .catch(err => {
         console.error("Error fetching rooms, using local fallback:", err);
-        const localRooms = getLocalRooms();
+        const localRooms = getLocalRooms().filter(r => r.status === 'available');
         setRooms(localRooms);
         setAvailableRooms(localRooms);
         if (preselectedRoom) {
@@ -145,9 +262,10 @@ export default function Reservation() {
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data)) {
-            setAvailableRooms(data);
+            const availableOnly = data.filter(r => r.status === 'available');
+            setAvailableRooms(availableOnly);
             // If currently selected room becomes unavailable, clear it
-            if (formData.roomId && !data.find(r => r.id.toString() === formData.roomId)) {
+            if (formData.roomId && !availableOnly.find(r => r.id.toString() === formData.roomId)) {
               setFormData(prev => ({ ...prev, roomId: '' }));
               toast.warning("The selected room class is fully booked for these dates. Please select an alternative.");
             }
@@ -156,6 +274,7 @@ export default function Reservation() {
             const localRooms = getLocalRooms();
             const localBookings = getLocalBookings();
             const available = localRooms.filter(r => {
+              if (r.status !== 'available') return false;
               const hasOverlap = localBookings.some(b => {
                 if (b.room_id !== r.id || b.status === 'cancelled') return false;
                 return (formData.checkIn < b.check_out && formData.checkOut > b.check_in);
@@ -173,6 +292,7 @@ export default function Reservation() {
           const localRooms = getLocalRooms();
           const localBookings = getLocalBookings();
           const available = localRooms.filter(r => {
+            if (r.status !== 'available') return false;
             const hasOverlap = localBookings.some(b => {
               if (b.room_id !== r.id || b.status === 'cancelled') return false;
               return (formData.checkIn < b.check_out && formData.checkOut > b.check_in);
@@ -200,6 +320,7 @@ export default function Reservation() {
   // Form submission handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     setIsSubmitting(true);
     
     try {
@@ -213,12 +334,14 @@ export default function Reservation() {
           guest_phone: formData.guestPhone,
           check_in: formData.checkIn,
           check_out: formData.checkOut,
-          total_price: estimatedCost
+          total_price: parseFloat((estimatedCost * 1.12).toFixed(2)),
+          status: 'pending'
         })
       });
 
       if (response.ok) {
         showModal('success');
+        setTrackEmail(formData.guestEmail); // Pre-fill tracking search
         setFormData({
           checkIn: '',
           checkOut: '',
@@ -248,13 +371,14 @@ export default function Reservation() {
           guest_phone: formData.guestPhone,
           check_in: formData.checkIn,
           check_out: formData.checkOut,
-          status: 'confirmed' as const,
-          total_price: estimatedCost
+          status: 'pending' as const,
+          total_price: parseFloat((parseFloat(selectedRoom.price) * nights * 1.12).toFixed(2))
         };
         localBookings.push(newBooking);
         saveLocalBookings(localBookings);
 
         showModal('success');
+        setTrackEmail(formData.guestEmail); // Pre-fill tracking search
         setFormData({
           checkIn: '',
           checkOut: '',
@@ -356,6 +480,14 @@ export default function Reservation() {
       guestEmail: '',
       guestPhone: ''
     });
+    setPaymentDetails({
+      cardName: '',
+      cardNumber: '',
+      cardExpiry: '',
+      cardCvv: '',
+      gcashNumber: ''
+    });
+    setAcceptTerms(false);
     setStep(1);
     setErrors({});
     toast.info("Booking criteria has been reset.");
@@ -383,28 +515,57 @@ export default function Reservation() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      {/* Page Title */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight" style={{ color: '#1E73BE' }}>
-            Book Your Stay
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Experience comfort & class at Marian Hotel. Secure your stay in 4 easy steps.
-          </p>
-        </div>
-        
-        {/* Reset Action */}
-        <button 
-          onClick={handleReset} 
-          className="text-sm font-semibold text-slate-500 hover:text-red-500 px-4 py-2 hover:bg-slate-100 rounded-xl transition-all w-fit"
+      
+      {/* Modern Premium Navigation Tabs */}
+      <div className="flex border-b border-slate-200 mb-8 max-w-md bg-slate-100 p-1.5 rounded-2xl">
+        <button
+          onClick={() => setActiveTab('book')}
+          className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+            activeTab === 'book'
+              ? 'bg-white text-[#1E73BE] shadow-sm'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
         >
-          Reset Booking Details
+          <Calendar className="w-4 h-4" />
+          Book Accommodation
+        </button>
+        <button
+          onClick={() => setActiveTab('track')}
+          className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+            activeTab === 'track'
+              ? 'bg-white text-[#1E73BE] shadow-sm'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <CreditCard className="w-4 h-4" />
+          Track & Pay Booking
         </button>
       </div>
 
-      {/* Stepper Progress Indicator (Heuristic #1) */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-10">
+      {activeTab === 'book' ? (
+        <>
+          {/* Page Title */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+            <div>
+              <h1 className="text-4xl font-bold tracking-tight" style={{ color: '#1E73BE' }}>
+                Book Your Stay
+              </h1>
+              <p className="text-gray-500 mt-1">
+                Experience comfort & class at Marian Hotel. Secure your stay in 4 easy steps.
+              </p>
+            </div>
+            
+            {/* Reset Action */}
+            <button 
+              onClick={handleReset} 
+              className="text-sm font-semibold text-slate-500 hover:text-red-500 px-4 py-2 hover:bg-slate-100 rounded-xl transition-all w-fit"
+            >
+              Reset Booking Details
+            </button>
+          </div>
+
+          {/* Stepper Progress Indicator (Heuristic #1) */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-10">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex flex-wrap items-center gap-2 md:gap-4 w-full">
             {steps.map((s, idx) => (
@@ -808,6 +969,14 @@ export default function Reservation() {
                     <span>No deposit required. You can cancel or amend this booking free of charge up to 48 hours prior to arrival.</span>
                   </div>
                 </div>
+
+                <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex gap-3 text-blue-800 text-xs mt-4">
+                  <Info className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                  <div>
+                    <span className="font-bold block mb-0.5">Admin Approval Required</span>
+                    <span>Wait for the approval, it will be sent on your Gmail or we will call you. Thank you for reserving!</span>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -837,17 +1006,17 @@ export default function Reservation() {
                 <button
                   onClick={handleSubmit}
                   disabled={isSubmitting}
-                  className="flex items-center gap-2 px-6 py-3.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm shadow-md shadow-emerald-500/10"
+                  className="flex items-center gap-2 px-6 py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm shadow-md shadow-blue-500/10"
                 >
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Confirming Stay...</span>
+                      <span>Sending Request...</span>
                     </>
                   ) : (
                     <>
-                      <CreditCard className="w-4 h-4" />
-                      <span>Secure Booking</span>
+                      <Check className="w-4 h-4" />
+                      <span>Request Booking Approval</span>
                     </>
                   )}
                 </button>
@@ -934,8 +1103,424 @@ export default function Reservation() {
             )}
           </div>
         </div>
-
       </div>
+    </>
+  ) : (
+        <div className="space-y-8">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold text-slate-800 mb-2 flex items-center gap-2">
+              <Search className="w-6 h-6 text-[#1E73BE]" />
+              Track & Pay Your Booking
+            </h2>
+            <p className="text-sm text-slate-500 mb-6">
+              Enter your registered guest email address below to review approval status, check booking summaries, and complete GCash or Card payments.
+            </p>
+
+            <form onSubmit={(e) => handleTrackSearch(e)} className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="email"
+                  placeholder="e.g. guest@example.com"
+                  value={trackEmail}
+                  onChange={(e) => setTrackEmail(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-100 focus:border-[#1E73BE] transition-all text-sm font-semibold"
+                />
+              </div>
+              <button
+                type="submit"
+                className="px-6 py-3 bg-[#1E73BE] text-white font-bold rounded-2xl hover:bg-[#155a96] transition-all text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-500/10 active:scale-95"
+              >
+                <Search className="w-4 h-4" />
+                Find Bookings
+              </button>
+            </form>
+          </div>
+
+          {hasTracked && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <h3 className="text-xl font-bold text-slate-800 border-b pb-2 flex items-center gap-2">
+                <span>Search Results for</span>
+                <span className="text-[#1E73BE] font-extrabold underline">{trackEmail}</span>
+              </h3>
+
+              {trackedBookings.length === 0 ? (
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-12 text-center text-slate-400 space-y-4">
+                  <AlertCircle className="w-12 h-12 text-slate-300 mx-auto" />
+                  <div>
+                    <p className="font-bold text-slate-700 text-lg">No Active Reservations Found</p>
+                    <p className="text-sm text-slate-500 mt-1">Make sure you entered the exact email used during booking or submit a new reservation request.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {trackedBookings.map((booking) => {
+                    const roomTypeObj = roomTypes[booking.room_type as keyof typeof roomTypes];
+                    return (
+                      <div key={booking.id} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md">
+                        {/* Header banner */}
+                        <div className="px-6 py-4 bg-slate-50 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                          <div>
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Booking ID #{booking.id}</span>
+                            <h4 className="text-lg font-bold text-slate-800 mt-0.5">
+                              {roomTypeObj ? roomTypeObj.name : 'Luxury Accommodation'} — Room {booking.room_number}
+                            </h4>
+                          </div>
+
+                          {/* Status Badge */}
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold capitalize ${
+                            booking.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
+                            booking.status === 'approved' ? 'bg-blue-100 text-blue-700' :
+                            booking.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                            'bg-rose-100 text-rose-700'
+                          }`}>
+                            {booking.status === 'confirmed' && <CheckCircle2 className="w-3.5 h-3.5" />}
+                            {booking.status === 'approved' && <Clock className="w-3.5 h-3.5" />}
+                            {booking.status === 'pending' && <Clock className="w-3.5 h-3.5" />}
+                            {booking.status === 'cancelled' && <X className="w-3.5 h-3.5" />}
+                            {booking.status === 'pending' ? 'Pending Approval' : booking.status === 'approved' ? 'Approved (Waiting Payment)' : booking.status === 'confirmed' ? 'Paid & Confirmed' : booking.status}
+                          </span>
+                        </div>
+
+                        {/* Booking Details Grid */}
+                        <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-slate-100 text-sm">
+                          <div className="space-y-3">
+                            <h5 className="font-bold text-slate-400 uppercase tracking-wider text-xs">Guest Information</h5>
+                            <div className="space-y-1">
+                              <p className="font-bold text-slate-800">{booking.guest_name}</p>
+                              <p className="text-slate-500 text-xs">{booking.guest_email}</p>
+                              <p className="text-slate-500 text-xs">{booking.guest_phone}</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <h5 className="font-bold text-slate-400 uppercase tracking-wider text-xs">Stay Summary</h5>
+                            <div className="space-y-1 text-slate-700">
+                              <p><span className="font-medium">Check-In:</span> <span className="font-bold text-slate-800">{booking.check_in}</span></p>
+                              <p><span className="font-medium">Check-Out:</span> <span className="font-bold text-slate-800">{booking.check_out}</span></p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <h5 className="font-bold text-slate-400 uppercase tracking-wider text-xs">Total Amount</h5>
+                            <div>
+                              <p className="text-2xl font-extrabold text-[#1E73BE]">${parseFloat(booking.total_price).toFixed(2)}</p>
+                              <p className="text-[11px] text-slate-400">All local taxes & fees included.</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Interactive Workflow Controls */}
+                        <div className="p-6 bg-slate-50/50">
+                          {booking.status === 'pending' && (
+                            <div className="space-y-4">
+                              {/* Simple timeline */}
+                              <div className="flex items-center gap-4 text-xs font-bold mb-2">
+                                <div className="flex items-center gap-1.5 text-emerald-600">
+                                  <span className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-[10px]">1</span>
+                                  Request Submitted
+                                </div>
+                                <div className="w-8 h-0.5 bg-slate-200" />
+                                <div className="flex items-center gap-1.5 text-amber-600 animate-pulse">
+                                  <span className="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center text-[10px]">2</span>
+                                  Admin Verification
+                                </div>
+                                <div className="w-8 h-0.5 bg-slate-200" />
+                                <div className="flex items-center gap-1.5 text-slate-400">
+                                  <span className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[10px]">3</span>
+                                  Secure Checkout
+                                </div>
+                              </div>
+                              <p className="text-xs text-slate-600 leading-relaxed max-w-2xl bg-amber-50 border border-amber-100 p-3.5 rounded-2xl">
+                                <Clock className="w-4 h-4 text-amber-500 inline-block mr-1.5 -mt-0.5 flex-shrink-0" />
+                                <strong>Active Review:</strong> Our administrative team is currently verifying room inventory for your dates. Once verified, this booking status will change to "Approved" and unlock the online GCash/Card payment portal below.
+                              </p>
+                            </div>
+                          )}
+
+                          {booking.status === 'approved' && (
+                            <>
+                              {payingBookingId === booking.id ? (
+                                <div className="space-y-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm max-w-xl">
+                                  <div className="flex justify-between items-center pb-3 border-b">
+                                    <h4 className="font-bold text-slate-800 text-base flex items-center gap-1.5">
+                                      <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                                      Secure Reservation Checkout
+                                    </h4>
+                                    <button
+                                      onClick={() => setPayingBookingId(null)}
+                                      className="p-1.5 hover:bg-slate-100 rounded-lg transition-all"
+                                    >
+                                      <X className="w-4 h-4 text-slate-400" />
+                                    </button>
+                                  </div>
+
+                                  {/* Select Payment Method */}
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                      type="button"
+                                      onClick={() => setPaymentMethod('card')}
+                                      className={`flex flex-col items-center justify-center p-3.5 rounded-xl border-2 transition-all gap-1.5 cursor-pointer ${
+                                        paymentMethod === 'card'
+                                          ? 'border-[#1E73BE] bg-blue-50/20 text-[#1E73BE] ring-4 ring-blue-50'
+                                          : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                                      }`}
+                                    >
+                                      <CreditCard className="w-5 h-5" />
+                                      <span className="text-xs font-bold">Credit/Debit Card</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setPaymentMethod('gcash')}
+                                      className={`flex flex-col items-center justify-center p-3.5 rounded-xl border-2 transition-all gap-1.5 cursor-pointer ${
+                                        paymentMethod === 'gcash'
+                                          ? 'border-blue-600 bg-sky-50/20 text-blue-600 ring-4 ring-sky-50'
+                                          : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                                      }`}
+                                    >
+                                      <span className="text-[10px] font-black italic tracking-wider text-blue-600 bg-white border border-blue-200 px-1.5 py-0.5 rounded shadow-sm">GCash</span>
+                                      <span className="text-xs font-bold">GCash Simulation</span>
+                                    </button>
+                                  </div>
+
+                                  {/* Card Form */}
+                                  {paymentMethod === 'card' ? (
+                                    <div className="space-y-3">
+                                      <div className="space-y-1">
+                                        <label className="block text-[11px] font-bold text-slate-500 uppercase">Cardholder Name</label>
+                                        <input
+                                          type="text"
+                                          placeholder="Steven Ochigue"
+                                          value={paymentDetails.cardName}
+                                          onChange={(e) => {
+                                            setPaymentDetails({ ...paymentDetails, cardName: e.target.value });
+                                            setErrors(prev => ({ ...prev, cardName: '' }));
+                                          }}
+                                          className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl outline-none focus:ring-2 text-xs transition-all ${
+                                            errors.cardName ? 'border-red-400 focus:ring-red-100' : 'border-slate-200 focus:ring-blue-100 focus:bg-white'
+                                          }`}
+                                        />
+                                        {errors.cardName && <p className="text-[10px] text-red-500 font-bold">{errors.cardName}</p>}
+                                      </div>
+
+                                      <div className="space-y-1">
+                                        <label className="block text-[11px] font-bold text-slate-500 uppercase">Card Number</label>
+                                        <input
+                                          type="text"
+                                          placeholder="4111 2222 3333 4444"
+                                          maxLength={19}
+                                          value={paymentDetails.cardNumber}
+                                          onChange={(e) => {
+                                            const v = e.target.value.replace(/\s/g, '').replace(/[^0-9]/gi, '');
+                                            const matches = v.match(/\d{4,16}/g);
+                                            const match = matches && matches[0] || '';
+                                            const parts = [];
+
+                                            for (let i = 0, len = match.length; i < len; i += 4) {
+                                              parts.push(match.substring(i, i + 4));
+                                            }
+
+                                            if (parts.length > 0) {
+                                              setPaymentDetails({ ...paymentDetails, cardNumber: parts.join(' ') });
+                                            } else {
+                                              setPaymentDetails({ ...paymentDetails, cardNumber: v });
+                                            }
+                                            setErrors(prev => ({ ...prev, cardNumber: '' }));
+                                          }}
+                                          className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl outline-none focus:ring-2 text-xs transition-all ${
+                                            errors.cardNumber ? 'border-red-400 focus:ring-red-100' : 'border-slate-200 focus:ring-blue-100 focus:bg-white'
+                                          }`}
+                                        />
+                                        {errors.cardNumber && <p className="text-[10px] text-red-500 font-bold">{errors.cardNumber}</p>}
+                                      </div>
+
+                                      <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1">
+                                          <label className="block text-[11px] font-bold text-slate-500 uppercase">Expiry Date</label>
+                                          <input
+                                            type="text"
+                                            placeholder="MM/YY"
+                                            maxLength={5}
+                                            value={paymentDetails.cardExpiry}
+                                            onChange={(e) => {
+                                              let v = e.target.value.replace(/[^0-9]/g, '');
+                                              if (v.length > 2) {
+                                                v = v.substring(0, 2) + '/' + v.substring(2, 4);
+                                              }
+                                              setPaymentDetails({ ...paymentDetails, cardExpiry: v });
+                                              setErrors(prev => ({ ...prev, cardExpiry: '' }));
+                                            }}
+                                            className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl outline-none focus:ring-2 text-xs transition-all ${
+                                              errors.cardExpiry ? 'border-red-400 focus:ring-red-100' : 'border-slate-200 focus:ring-blue-100 focus:bg-white'
+                                            }`}
+                                          />
+                                          {errors.cardExpiry && <p className="text-[10px] text-red-500 font-bold">{errors.cardExpiry}</p>}
+                                        </div>
+
+                                        <div className="space-y-1">
+                                          <label className="block text-[11px] font-bold text-slate-500 uppercase">CVV</label>
+                                          <input
+                                            type="password"
+                                            placeholder="123"
+                                            maxLength={3}
+                                            value={paymentDetails.cardCvv}
+                                            onChange={(e) => {
+                                              const v = e.target.value.replace(/[^0-9]/g, '');
+                                              setPaymentDetails({ ...paymentDetails, cardCvv: v });
+                                              setErrors(prev => ({ ...prev, cardCvv: '' }));
+                                            }}
+                                            className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl outline-none focus:ring-2 text-xs transition-all ${
+                                              errors.cardCvv ? 'border-red-400 focus:ring-red-100' : 'border-slate-200 focus:ring-blue-100 focus:bg-white'
+                                            }`}
+                                          />
+                                          {errors.cardCvv && <p className="text-[10px] text-red-500 font-bold">{errors.cardCvv}</p>}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-3 bg-slate-50 p-4 rounded-xl border">
+                                      <div className="flex items-start gap-2 bg-sky-50 p-2.5 rounded-lg border border-sky-100 text-[11px] text-sky-800 font-medium">
+                                        <Info className="w-4 h-4 text-sky-600 flex-shrink-0 mt-0.5" />
+                                        <span>Enter your mock 10-digit mobile number linked with GCash to simulate transaction authorization.</span>
+                                      </div>
+                                      <div className="space-y-1">
+                                        <label className="block text-[11px] font-bold text-slate-500 uppercase">GCash Mobile Number</label>
+                                        <div className="relative">
+                                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xs">+63</span>
+                                          <input
+                                            type="tel"
+                                            placeholder="912 345 6789"
+                                            maxLength={10}
+                                            value={paymentDetails.gcashNumber}
+                                            onChange={(e) => {
+                                              const v = e.target.value.replace(/[^0-9]/g, '');
+                                              setPaymentDetails({ ...paymentDetails, gcashNumber: v });
+                                              setErrors(prev => ({ ...prev, gcashNumber: '' }));
+                                            }}
+                                            className={`w-full pl-11 pr-3 py-2.5 bg-white border rounded-xl outline-none focus:ring-2 text-xs transition-all ${
+                                              errors.gcashNumber ? 'border-red-400 focus:ring-red-100' : 'border-slate-200 focus:ring-blue-100'
+                                            }`}
+                                          />
+                                        </div>
+                                        {errors.gcashNumber && <p className="text-[10px] text-red-500 font-bold">{errors.gcashNumber}</p>}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Agree to terms */}
+                                  <div className="flex items-start gap-2 pt-2">
+                                    <input
+                                      type="checkbox"
+                                      id={`accept-terms-${booking.id}`}
+                                      checked={acceptTerms}
+                                      onChange={(e) => {
+                                        setAcceptTerms(e.target.checked);
+                                        setErrors(prev => ({ ...prev, acceptTerms: '' }));
+                                      }}
+                                      className="mt-0.5 w-3.5 h-3.5 rounded border-slate-300 text-[#1E73BE]"
+                                    />
+                                    <label htmlFor={`accept-terms-${booking.id}`} className="text-[11px] text-slate-600 select-none">
+                                      I authorize Marian Hotel to simulate a transaction of <strong>${parseFloat(booking.total_price).toFixed(2)}</strong>, and agree to the Terms of Service.
+                                    </label>
+                                  </div>
+                                  {errors.acceptTerms && <p className="text-[10px] text-red-500 font-bold">{errors.acceptTerms}</p>}
+
+                                  {/* Confirm Button */}
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => handleConfirmPayment(booking.id)}
+                                      disabled={isSubmitting}
+                                      className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/10 active:scale-95 disabled:opacity-50"
+                                    >
+                                      {isSubmitting ? (
+                                        <>
+                                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                          Simulating...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <ShieldCheck className="w-3.5 h-3.5" />
+                                          Authorize Payment
+                                        </>
+                                      )}
+                                    </button>
+                                    <button
+                                      onClick={() => setPayingBookingId(null)}
+                                      className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-all text-xs"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="space-y-4">
+                                  <div className="flex items-center gap-4 text-xs font-bold mb-2">
+                                    <div className="flex items-center gap-1.5 text-emerald-600">
+                                      <span className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-[10px]">1</span>
+                                      Request Approved
+                                    </div>
+                                    <div className="w-8 h-0.5 bg-emerald-200" />
+                                    <div className="flex items-center gap-1.5 text-[#1E73BE]">
+                                      <span className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-[10px]">2</span>
+                                      Payment Required
+                                    </div>
+                                    <div className="w-8 h-0.5 bg-slate-200" />
+                                    <div className="flex items-center gap-1.5 text-slate-400">
+                                      <span className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[10px]">3</span>
+                                      Final Voucher
+                                    </div>
+                                  </div>
+                                  <p className="text-xs text-slate-600 leading-relaxed max-w-2xl">
+                                    Your request has been approved by the Admin team! Secure your booking inventory right now by completing the mock payment checkout below.
+                                  </p>
+                                  <button
+                                    onClick={() => {
+                                      setPayingBookingId(booking.id);
+                                      setErrors({});
+                                    }}
+                                    className="px-6 py-3 bg-[#1E73BE] hover:bg-[#155a96] text-white font-bold rounded-2xl transition-all text-sm flex items-center gap-2 shadow-md shadow-blue-500/10 active:scale-95"
+                                  >
+                                    <CreditCard className="w-4 h-4" />
+                                    Pay Securely Now
+                                  </button>
+                                </div>
+                              )}
+                            </>
+                          )}
+
+                          {booking.status === 'confirmed' && (
+                            <div className="bg-emerald-50 border border-emerald-100 text-emerald-800 p-4 rounded-2xl flex gap-3 text-xs">
+                              <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                              <div>
+                                <span className="font-bold block text-sm mb-0.5">Booking Fully Confirmed</span>
+                                <p className="leading-relaxed">
+                                  Payment successfully received. Your check-in voucher is fully verified and prepared. Welcome to Marian Hotel! Your Room {booking.room_number} is reserved and guaranteed for arrival.
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
+                          {booking.status === 'cancelled' && (
+                            <div className="bg-rose-50 border border-rose-100 text-rose-800 p-4 rounded-2xl flex gap-3 text-xs">
+                              <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+                              <div>
+                                <span className="font-bold block text-sm mb-0.5">Reservation Cancelled</span>
+                                <p className="leading-relaxed">
+                                  This request has been cancelled or rejected by hotel management. If you need any assistance, please send a new reservation request or get in touch.
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Booking Confirmation Dialog (Heuristic #1: System Status) */}
       <Dialog open={modalState.isOpen} onOpenChange={(open) => setModalState(prev => ({ ...prev, isOpen: open }))}>
@@ -953,11 +1538,11 @@ export default function Reservation() {
             
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold text-center">
-                {modalState.type === 'success' ? 'Reservation Confirmed!' : 'Booking Attempt Failed'}
+                {modalState.type === 'success' ? 'Request Submitted!' : 'Booking Attempt Failed'}
               </DialogTitle>
               <DialogDescription className="text-center pt-2">
                 {modalState.type === 'success' 
-                  ? "Your luxury room has been locked in. We have dispatched a formal confirmation voucher to your email address."
+                  ? "Wait for the approval, it will be sent on your Gmail or we will call you. Thank you!"
                   : modalState.message}
               </DialogDescription>
             </DialogHeader>

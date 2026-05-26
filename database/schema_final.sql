@@ -54,7 +54,7 @@ CREATE TABLE bookings (
     check_in DATE NOT NULL,
     check_out DATE NOT NULL,
     total_price DECIMAL(10, 2) NOT NULL,
-    status ENUM('pending', 'confirmed', 'cancelled') DEFAULT 'pending',
+    status ENUM('pending', 'approved', 'confirmed', 'cancelled') DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (guest_id) REFERENCES guests(id) ON DELETE CASCADE,
     FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
@@ -90,3 +90,15 @@ VALUES
 (4, 401, 'available'), (4, 402, 'available'), (4, 403, 'available'), (4, 404, 'available'), (4, 405, 'available'),
 -- Family (Category ID: 5)
 (5, 501, 'available'), (5, 502, 'available'), (5, 503, 'available'), (5, 504, 'available'), (5, 505, 'available');
+
+-- Insert Initial Guests
+INSERT INTO guests (id, name, email, phone) VALUES
+(1, 'Steven Ochigue', 'steve@example.com', '+63 912 345 6789'),
+(2, 'Jane Doe', 'jane@example.com', '+63 923 456 7890'),
+(3, 'Robert Miller', 'miller@example.com', '+1 (555) 019-2834');
+
+-- Insert Initial Bookings (1 approved, 1 pending, 1 confirmed)
+INSERT INTO bookings (id, guest_id, room_id, check_in, check_out, total_price, status) VALUES
+(101, 1, 3, '2026-06-01', '2026-06-05', 226.96, 'approved'),
+(102, 2, 8, '2026-05-24', '2026-05-27', 194.55, 'pending'),
+(103, 3, 21, '2026-07-10', '2026-07-15', 810.65, 'confirmed');

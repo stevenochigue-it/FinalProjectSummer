@@ -973,7 +973,7 @@ export default function Reservation() {
                 <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex gap-3 text-blue-800 text-xs mt-4">
                   <Info className="w-5 h-5 text-blue-600 flex-shrink-0" />
                   <div>
-                    <span className="font-bold block mb-0.5">Admin Approval Required</span>
+                    <span className="font-bold block mb-0.5">Approval Required</span>
                     <span>Wait for the approval, it will be sent on your Gmail or we will call you. Thank you for reserving!</span>
                   </div>
                 </div>
@@ -1554,7 +1554,7 @@ export default function Reservation() {
                   modalState.type === 'success' ? 'bg-[#1E73BE] hover:bg-[#155a96]' : 'bg-red-500 hover:bg-red-600'
                 }`}
               >
-                {modalState.type === 'success' ? 'Wonderful, Thank You!' : 'Try Again'}
+                {modalState.type === 'success' ? 'Thank You!' : 'Try Again'}
               </button>
             </DialogFooter>
           </div>

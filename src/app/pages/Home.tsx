@@ -9,7 +9,7 @@ export default function Home() {
         {/* Parallax Background */}
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1920&q=80"
+            src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1920&q=80"
             alt="Marian Hotel Luxury Exterior"
             className="w-full h-full object-cover opacity-35 scale-[1.02] transform transition-transform duration-[10000ms] hover:scale-100"
           />

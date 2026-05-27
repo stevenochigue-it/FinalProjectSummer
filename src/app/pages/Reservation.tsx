@@ -69,12 +69,16 @@ export default function Reservation() {
       return;
     }
     // Fetch live bookings or fallback
-    fetch('/api/bookings/list.php')
+    fetch(`/api/bookings/track.php?email=${encodeURIComponent(trackEmail)}`)
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
-          const filtered = data.filter(b => b.guest_email.toLowerCase() === trackEmail.toLowerCase());
-          setTrackedBookings(filtered);
+          setTrackedBookings(data);
+          // Sync with local storage
+          const local = getLocalBookings();
+          const otherLocal = local.filter(b => b.guest_email.toLowerCase() !== trackEmail.toLowerCase());
+          const merged = [...otherLocal, ...data];
+          saveLocalBookings(merged);
         } else {
           const local = getLocalBookings();
           const filtered = local.filter(b => b.guest_email.toLowerCase() === trackEmail.toLowerCase());
@@ -118,14 +122,24 @@ export default function Reservation() {
 
     setIsSubmitting(true);
     try {
-      // Simulate API call to update status to confirmed
-      const response = await fetch('/api/bookings/update.php', {
+      // Call public payment API to update status to confirmed
+      const response = await fetch('/api/bookings/pay.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: bookingId, status: 'confirmed' })
+        body: JSON.stringify({ id: bookingId })
       });
       if (response.ok) {
         toast.success("Payment successful! Reservation is paid and fully confirmed.");
+        
+        // Sync local storage state
+        const local = getLocalBookings();
+        const updated = local.map(b => {
+          if (b.id === bookingId) {
+            return { ...b, status: 'confirmed' as const };
+          }
+          return b;
+        });
+        saveLocalBookings(updated);
       } else {
         throw new Error("API update failed");
       }
@@ -151,10 +165,9 @@ export default function Reservation() {
         gcashNumber: ''
       });
       setAcceptTerms(false);
+      // Immediately refresh the search result from the database or local storage
       setTimeout(() => {
-        const local = getLocalBookings();
-        const filtered = local.filter(b => b.guest_email.toLowerCase() === trackEmail.toLowerCase());
-        setTrackedBookings(filtered);
+        handleTrackSearch();
       }, 100);
     }
   };

@@ -33,6 +33,7 @@ CREATE TABLE rooms (
     category_id INT NOT NULL,
     room_number INT NOT NULL UNIQUE,
     status ENUM('available', 'occupied', 'maintenance') DEFAULT 'available',
+    amenities JSON DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (category_id) REFERENCES room_categories(id) ON DELETE CASCADE
 );

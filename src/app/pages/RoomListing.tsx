@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
 import { Users, ArrowRight, Loader2 } from 'lucide-react';
-import { roomTypes, getLocalRooms } from '../data/rooms';
+import { roomTypes, getLocalRooms, getLocalBookings } from '../data/rooms';
 
 export default function RoomListing() {
   const [rooms, setRooms] = useState<any[]>([]);
@@ -12,14 +12,38 @@ export default function RoomListing() {
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
-          setRooms(data.filter(r => r.status === 'available'));
+          setRooms(data.filter(r => r.status === 'available' && !r.is_paid_occupied));
         } else {
-          setRooms(getLocalRooms().filter(r => r.status === 'available'));
+          const todayStr = new Date().toLocaleDateString('en-CA');
+          const localBookings = getLocalBookings();
+          const filtered = getLocalRooms().filter(r => {
+            if (r.status !== 'available') return false;
+            const isPaidOccupied = localBookings.some(b => 
+              b.room_id === r.id && 
+              b.status === 'confirmed' && 
+              todayStr >= b.check_in && 
+              todayStr < b.check_out
+            );
+            return !isPaidOccupied;
+          });
+          setRooms(filtered);
         }
       })
       .catch(err => {
         console.error("Error fetching rooms, using local storage:", err);
-        setRooms(getLocalRooms().filter(r => r.status === 'available'));
+        const todayStr = new Date().toLocaleDateString('en-CA');
+        const localBookings = getLocalBookings();
+        const filtered = getLocalRooms().filter(r => {
+          if (r.status !== 'available') return false;
+          const isPaidOccupied = localBookings.some(b => 
+            b.room_id === r.id && 
+            b.status === 'confirmed' && 
+            todayStr >= b.check_in && 
+            todayStr < b.check_out
+          );
+          return !isPaidOccupied;
+        });
+        setRooms(filtered);
       })
       .finally(() => setLoading(false));
   }, []);

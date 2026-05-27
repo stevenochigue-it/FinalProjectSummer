@@ -101,7 +101,8 @@ export const initialRooms: Room[] = [
 export const initialBookings: Booking[] = [
   { id: 101, room_id: 3, room_number: 103, room_type: 'standard', guest_name: 'Steven Ochigue', guest_email: 'steve@example.com', guest_phone: '+63 912 345 6789', check_in: '2026-06-01', check_out: '2026-06-05', status: 'approved', total_price: 226.96 },
   { id: 102, room_id: 8, room_number: 203, room_type: 'deluxe', guest_name: 'Jane Doe', guest_email: 'jane@example.com', guest_phone: '+63 923 456 7890', check_in: '2026-05-24', check_out: '2026-05-27', status: 'pending', total_price: 194.55 },
-  { id: 103, room_id: 21, room_number: 501, room_type: 'family', guest_name: 'Robert Miller', guest_email: 'miller@example.com', guest_phone: '+1 (555) 019-2834', check_in: '2026-07-10', check_out: '2026-07-15', status: 'confirmed', total_price: 810.65 }
+  { id: 103, room_id: 21, room_number: 501, room_type: 'family', guest_name: 'Robert Miller', guest_email: 'miller@example.com', guest_phone: '+1 (555) 019-2834', check_in: '2026-07-10', check_out: '2026-07-15', status: 'confirmed', total_price: 810.65 },
+  { id: 104, room_id: 11, room_number: 301, room_type: 'sweet', guest_name: 'John Smith', guest_email: 'john@example.com', guest_phone: '+1 (555) 123-4567', check_in: '2026-08-01', check_out: '2026-08-03', status: 'cancelled', total_price: 199.74 }
 ];
 
 // CLIENT-SIDE localStorage ENGINE (Heuristic #7: stand-alone fallback)

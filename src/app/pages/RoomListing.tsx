@@ -14,34 +14,28 @@ export default function RoomListing() {
         if (Array.isArray(data)) {
           setRooms(data.filter(r => r.status === 'available' && !r.is_paid_occupied));
         } else {
-          const todayStr = new Date().toLocaleDateString('en-CA');
           const localBookings = getLocalBookings();
           const filtered = getLocalRooms().filter(r => {
             if (r.status !== 'available') return false;
-            const isPaidOccupied = localBookings.some(b => 
+            const isPaid = localBookings.some(b => 
               b.room_id === r.id && 
-              b.status === 'confirmed' && 
-              todayStr >= b.check_in && 
-              todayStr < b.check_out
+              b.status === 'confirmed'
             );
-            return !isPaidOccupied;
+            return !isPaid;
           });
           setRooms(filtered);
         }
       })
       .catch(err => {
         console.error("Error fetching rooms, using local storage:", err);
-        const todayStr = new Date().toLocaleDateString('en-CA');
         const localBookings = getLocalBookings();
         const filtered = getLocalRooms().filter(r => {
           if (r.status !== 'available') return false;
-          const isPaidOccupied = localBookings.some(b => 
+          const isPaid = localBookings.some(b => 
             b.room_id === r.id && 
-            b.status === 'confirmed' && 
-            todayStr >= b.check_in && 
-            todayStr < b.check_out
+            b.status === 'confirmed'
           );
-          return !isPaidOccupied;
+          return !isPaid;
         });
         setRooms(filtered);
       })

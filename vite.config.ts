@@ -8,8 +8,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost/Final_ITE203-main',
+        target: 'http://localhost',
         changeOrigin: true,
+        rewrite: (path) => `/FinalProject_ITE203-main${path}`,
       },
     },
   },

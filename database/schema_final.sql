@@ -67,7 +67,7 @@ CREATE TABLE bookings (
 
 -- Insert Admin (password: admin123)
 INSERT INTO admins (username, password_hash) 
-VALUES ('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi');
+VALUES ('admin', '$2y$10$Yios0GD7LaUJfDiPRt5xh.o.yA1SofOb8zlA6Fufm85l/.aaCxr9K');
 
 -- Insert Room Categories
 INSERT INTO room_categories (category_name, price, capacity, image_url, amenities) 
@@ -96,10 +96,12 @@ VALUES
 INSERT INTO guests (id, name, email, phone) VALUES
 (1, 'Steven Ochigue', 'steve@example.com', '+63 912 345 6789'),
 (2, 'Jane Doe', 'jane@example.com', '+63 923 456 7890'),
-(3, 'Robert Miller', 'miller@example.com', '+1 (555) 019-2834');
+(3, 'Robert Miller', 'miller@example.com', '+1 (555) 019-2834'),
+(4, 'John Smith', 'john@example.com', '+1 (555) 123-4567');
 
--- Insert Initial Bookings (1 approved, 1 pending, 1 confirmed)
+-- Insert Initial Bookings (1 approved, 1 pending, 1 confirmed, 1 cancelled)
 INSERT INTO bookings (id, guest_id, room_id, check_in, check_out, total_price, status) VALUES
 (101, 1, 3, '2026-06-01', '2026-06-05', 226.96, 'approved'),
 (102, 2, 8, '2026-05-24', '2026-05-27', 194.55, 'pending'),
-(103, 3, 21, '2026-07-10', '2026-07-15', 810.65, 'confirmed');
+(103, 3, 21, '2026-07-10', '2026-07-15', 810.65, 'confirmed'),
+(104, 4, 11, '2026-08-01', '2026-08-03', 199.74, 'cancelled');

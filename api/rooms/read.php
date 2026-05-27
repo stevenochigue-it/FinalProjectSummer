@@ -22,9 +22,7 @@ try {
                    AND :today2 < b.check_out) as is_occupied,
                   (SELECT COUNT(*) FROM bookings b 
                    WHERE b.room_id = r.id 
-                   AND b.status = 'confirmed' 
-                   AND :today3 >= b.check_in 
-                   AND :today4 < b.check_out) as is_paid_occupied
+                   AND b.status = 'confirmed') as is_paid_occupied
                   FROM rooms r 
                   JOIN room_categories c ON r.category_id = c.id
                   WHERE r.id = :id";
@@ -32,8 +30,6 @@ try {
         $stmt->bindValue(':id', $id, PDO::PARAM_INT);
         $stmt->bindValue(':today1', $today, PDO::PARAM_STR);
         $stmt->bindValue(':today2', $today, PDO::PARAM_STR);
-        $stmt->bindValue(':today3', $today, PDO::PARAM_STR);
-        $stmt->bindValue(':today4', $today, PDO::PARAM_STR);
         $stmt->execute();
         
         $room = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -64,17 +60,13 @@ try {
                    AND :today2 < b.check_out) as is_occupied,
                   (SELECT COUNT(*) FROM bookings b 
                    WHERE b.room_id = r.id 
-                   AND b.status = 'confirmed' 
-                   AND :today3 >= b.check_in 
-                   AND :today4 < b.check_out) as is_paid_occupied
+                   AND b.status = 'confirmed') as is_paid_occupied
                   FROM rooms r 
                   JOIN room_categories c ON r.category_id = c.id
                   ORDER BY r.room_number ASC";
         $stmt = $db->prepare($query);
         $stmt->bindValue(':today1', $today, PDO::PARAM_STR);
         $stmt->bindValue(':today2', $today, PDO::PARAM_STR);
-        $stmt->bindValue(':today3', $today, PDO::PARAM_STR);
-        $stmt->bindValue(':today4', $today, PDO::PARAM_STR);
         $stmt->execute();
         
         $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);

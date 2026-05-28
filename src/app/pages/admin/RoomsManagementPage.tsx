@@ -151,18 +151,25 @@ export default function RoomsManagementPage() {
     e.preventDefault();
     setIsSubmitting(true);
     
+    let networkError = false;
     try {
       const url = editingRoom ? '/api/rooms/update.php' : '/api/rooms/create.php';
       const body = editingRoom ? { ...newRoom, id: editingRoom.id } : newRoom;
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer demo-token'
-        },
-        body: JSON.stringify(body)
-      });
+      let response;
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer demo-token'
+          },
+          body: JSON.stringify(body)
+        });
+      } catch (fetchErr) {
+        networkError = true;
+        throw fetchErr;
+      }
       
       if (response.ok) {
         toast.success(editingRoom ? "Room updated successfully!" : "Room added successfully!");
@@ -180,58 +187,62 @@ export default function RoomsManagementPage() {
         fetchRooms();
       } else {
         const result = await response.json();
-        throw new Error(result.message || "Failed to save room");
+        toast.error(result.message || "Failed to save room");
       }
     } catch (error) {
-      console.warn("API rooms save failed, using local storage backup:", error);
-      const localRooms = getLocalRooms();
-      if (editingRoom) {
-        const updated = localRooms.map(r => {
-          if (r.id === editingRoom.id) {
-            return {
-              ...r,
-              room_number: newRoom.room_number,
-              room_type: newRoom.room_type as any,
-              price: Number(newRoom.price),
-              capacity: newRoom.capacity,
-              status: newRoom.status as any,
-              image_url: newRoom.image_url || roomTypes[newRoom.room_type as keyof typeof roomTypes].image_url,
-              amenities: newRoom.amenities
-            };
-          }
-          return r;
+      if (networkError) {
+        console.warn("API rooms save failed, using local storage backup:", error);
+        const localRooms = getLocalRooms();
+        if (editingRoom) {
+          const updated = localRooms.map(r => {
+            if (r.id === editingRoom.id) {
+              return {
+                ...r,
+                room_number: newRoom.room_number,
+                room_type: newRoom.room_type as any,
+                price: Number(newRoom.price),
+                capacity: newRoom.capacity,
+                status: newRoom.status as any,
+                image_url: newRoom.image_url || roomTypes[newRoom.room_type as keyof typeof roomTypes].image_url,
+                amenities: newRoom.amenities
+              };
+            }
+            return r;
+          });
+          saveLocalRooms(updated);
+          toast.success("Room updated successfully (Local Storage)!");
+        } else {
+          const newId = localRooms.length > 0 ? Math.max(...localRooms.map(r => r.id)) + 1 : 1;
+          const added = {
+            id: newId,
+            room_number: newRoom.room_number,
+            room_type: newRoom.room_type as any,
+            price: Number(newRoom.price),
+            capacity: newRoom.capacity,
+            status: newRoom.status as any,
+            is_reserved: false,
+            image_url: newRoom.image_url || roomTypes[newRoom.room_type as keyof typeof roomTypes].image_url,
+            amenities: newRoom.amenities
+          };
+          localRooms.push(added);
+          saveLocalRooms(localRooms);
+          toast.success("Room added successfully (Local Storage)!");
+        }
+        setIsAddModalOpen(false);
+        setEditingRoom(null);
+        setNewRoom({
+          room_number: '',
+          room_type: 'standard',
+          price: roomTypes.standard.price,
+          capacity: roomTypes.standard.capacity,
+          status: 'available',
+          image_url: '',
+          amenities: roomTypes.standard.amenities
         });
-        saveLocalRooms(updated);
-        toast.success("Room updated successfully (Local Storage)!");
+        fetchRooms();
       } else {
-        const newId = localRooms.length > 0 ? Math.max(...localRooms.map(r => r.id)) + 1 : 1;
-        const added = {
-          id: newId,
-          room_number: newRoom.room_number,
-          room_type: newRoom.room_type as any,
-          price: Number(newRoom.price),
-          capacity: newRoom.capacity,
-          status: newRoom.status as any,
-          is_reserved: false,
-          image_url: newRoom.image_url || roomTypes[newRoom.room_type as keyof typeof roomTypes].image_url,
-          amenities: newRoom.amenities
-        };
-        localRooms.push(added);
-        saveLocalRooms(localRooms);
-        toast.success("Room added successfully (Local Storage)!");
+        toast.error("An unexpected error occurred.");
       }
-      setIsAddModalOpen(false);
-      setEditingRoom(null);
-      setNewRoom({
-        room_number: '',
-        room_type: 'standard',
-        price: roomTypes.standard.price,
-        capacity: roomTypes.standard.capacity,
-        status: 'available',
-        image_url: '',
-        amenities: roomTypes.standard.amenities
-      });
-      fetchRooms();
     } finally {
       setIsSubmitting(false);
     }
@@ -244,29 +255,41 @@ export default function RoomsManagementPage() {
   const confirmDelete = async () => {
     if (!roomToDelete) return;
     
+    let networkError = false;
     try {
-      const response = await fetch('/api/rooms/delete.php', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer demo-token'
-        },
-        body: JSON.stringify({ id: roomToDelete })
-      });
+      let response;
+      try {
+        response = await fetch('/api/rooms/delete.php', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer demo-token'
+          },
+          body: JSON.stringify({ id: roomToDelete })
+        });
+      } catch (fetchErr) {
+        networkError = true;
+        throw fetchErr;
+      }
       
       if (response.ok) {
         toast.success("Room deleted");
         fetchRooms();
       } else {
-        throw new Error("Failed to delete room");
+        const result = await response.json();
+        toast.error(result.message || "Failed to delete room");
       }
     } catch (error) {
-      console.warn("API room deletion failed, deleting from local storage backup:", error);
-      const localRooms = getLocalRooms();
-      const filtered = localRooms.filter(r => r.id !== roomToDelete);
-      saveLocalRooms(filtered);
-      toast.success("Room deleted (Local Storage)");
-      fetchRooms();
+      if (networkError) {
+        console.warn("API room deletion failed, deleting from local storage backup:", error);
+        const localRooms = getLocalRooms();
+        const filtered = localRooms.filter(r => r.id !== roomToDelete);
+        saveLocalRooms(filtered);
+        toast.success("Room deleted (Local Storage)");
+        fetchRooms();
+      } else {
+        toast.error("An unexpected error occurred.");
+      }
     } finally {
       setRoomToDelete(null);
     }
